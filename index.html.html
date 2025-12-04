@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Secure Exam Browser - SMA Cinta Kasih Tzu Chi</title>
+<style>
+    :root {
+        --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        --glass-surface: rgba(30, 41, 59, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --primary: #6366f1; /* Indigo */
+        --primary-glow: rgba(99, 102, 241, 0.5);
+        --danger: #f43f5e;
+        --warning: #f59e0b;
+        --success: #10b981;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --font-stack: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; outline: none; }
+    body {
+        margin: 0;
+        font-family: var(--font-stack);
+        background: var(--bg-gradient);
+        color: var(--text-main);
+        height: 100vh;
+        overflow: hidden;
+        user-select: none; /* Mencegah blok teks */
+    }
+
+    /* --- LAYOUT UTAMA --- */
+    .app-layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        height: 100vh;
+        width: 100vw;
+    }
+
+    /* --- SIDEBAR (KIRI) --- */
+    .sidebar {
+        background: var(--glass-surface);
+        backdrop-filter: blur(12px);
+        border-right: 1px solid var(--glass-border);
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 20px;
+        z-index: 10;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.2);
+    }
+
+    .brand {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-main);
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--glass-border);
+    }
+    .brand span { color: var(--primary); }
+
+    /* Webcam Frame */
+    .webcam-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 4/3;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid var(--glass-border);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    video#webcam {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+    }
+    .rec-indicator {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(220, 38, 38, 0.8);
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 4px 8px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .rec-dot {
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+    }
+
+    /* Info Cards */
+    .info-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 15px;
+    }
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+    .info-label { color: var(--text-muted); font-size: 0.8rem; }
+    .info-val { font-weight: 600; }
+
+    /* Violation Meter */
+    .viol-meter {
+        margin-top: 5px;
+        height: 6px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .viol-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--danger);
+        transition: width 0.3s ease;
+    }
+
+    /* Log Feed */
+    .log-feed {
+        flex: 1;
+        background: rgba(0,0,0,0.2);
+        border-radius: 8px;
+        padding: 10px;
+        overflow-y: auto;
+        font-size: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        border: 1px solid var(--glass-border);
+    }
+    .log-item {
+        color: var(--text-muted);
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .log-item.alert { color: var(--danger); font-weight: 600; }
+
+    /* Button */
+    .btn {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+    .btn-finish {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-finish:hover { background: var(--danger); color: white; }
+    
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 0 15px var(--primary-glow);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 20px var(--primary-glow); }
+
+    /* --- MAIN CONTENT (KANAN) --- */
+    .main-area {
+        position: relative;
+        background: white;
+    }
+    iframe { width: 100%; height: 100%; border: none; }
+
+    /* --- MODALS (Setup & Lock) --- */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+    .modal-box {
+        background: #1e293b;
+        border: 1px solid var(--glass-border);
+        padding: 40px;
+        border-radius: 20px;
+        width: 100%;
+        max-width: 420px;
+        text-align: center;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        transform: translateY(20px);
+        transition: transform 0.3s;
+    }
+    .modal-overlay.active .modal-box { transform: translateY(0); }
+
+    .input-group { margin-bottom: 15px; text-align: left; }
+    .input-group label { display: block; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 5px; }
+    .input-field {
+        width: 100%;
+        background: rgba(0,0,0,0.3);
+        border: 1px solid var(--glass-border);
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    .input-field:focus { border-color: var(--primary); }
+
+    /* Animations */
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .app-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+        .sidebar { height: auto; flex-direction: row; align-items: center; padding: 10px; gap: 10px; overflow-x: auto; }
+        .webcam-container { width: 80px; height: 60px; aspect-ratio: auto; }
+        .brand, .info-card, .log-feed { display: none; } /* Hide details on mobile */
+        .mobile-controls { display: flex; gap: 10px; flex: 1; }
+    }
+</style>
+</head>
+<body>
+
+<div id="modal-setup" class="modal-overlay active">
+    <div class="modal-box">
+        <div style="font-size: 3rem; margin-bottom: 10px;">🎓</div>
+        <h2 style="margin: 0; color: white;">Selamat Datang</h2>
+        <p style="color: var(--text-muted); margin-bottom: 25px;">Sistem Ujian Digital Terproteksi</p>
+        
+        <div class="input-group">
+            <label>Nama Lengkap</label>
+            <input type="text" id="inName" class="input-field" placeholder="Masukkan nama Anda" autocomplete="off">
+        </div>
+        <div class="input-group">
+            <label>Token Ujian</label>
+            <input type="password" id="inToken" class="input-field" placeholder="Kode dari Guru">
+        </div>
+
+        <button class="btn btn-primary" onclick="ExamSystem.init()">MULAI UJIAN</button>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 20px;">
+            Pastikan webcam aktif & browser dimaksimalkan.
+        </p>
+    </div>
+</div>
+
+<div id="modal-lock" class="modal-overlay">
+    <div class="modal-box" style="border-color: var(--danger);">
+        <div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div>
+        <h2 style="color: var(--danger); margin: 0;">UJIAN DIBLOKIR</h2>
+        <p style="color: var(--text-muted);">Terdeteksi aktivitas mencurigakan.</p>
+        
+        <div style="background: rgba(244, 63, 94, 0.1); padding: 10px; border-radius: 8px; margin: 20px 0;">
+            <span style="display:block; font-size:0.8rem; color:var(--text-muted)">Total Pelanggaran</span>
+            <span id="lock-viol-count" style="font-size: 2rem; font-weight: 800; color: var(--danger);">0</span>
+        </div>
+
+        <div class="input-group">
+            <input type="password" id="teacherPass" class="input-field" placeholder="Password Guru untuk Membuka">
+        </div>
+        <button class="btn" style="background: var(--warning); color: #000;" onclick="ExamSystem.unlock()">BUKA BLOKIR (ADMIN)</button>
+    </div>
+</div>
+
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <div>Proctor<span>View</span></div>
+        </div>
+
+        <div class="webcam-container">
+            <video id="webcam" autoplay muted playsinline></video>
+            <div class="rec-indicator">
+                <div class="rec-dot"></div> REC
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="info-row">
+                <span class="info-label">Siswa</span>
+                <span class="info-val" id="dispName">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Waktu Berjalan</span>
+                <span class="info-val" id="timer">00:00</span>
+            </div>
+            <div style="margin-top: 10px;">
+                <div class="info-row" style="margin-bottom: 4px;">
+                    <span class="info-label">Tingkat Pelanggaran</span>
+                    <span class="info-val" style="color: var(--danger);" id="violText">0/3</span>
+                </div>
+                <div class="viol-meter">
+                    <div class="viol-fill" id="violBar"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-feed" id="logFeed">
+            <div class="log-item">Menunggu login...</div>
+        </div>
+
+        <div style="margin-top: auto;">
+            <button class="btn btn-finish" onclick="ExamSystem.finish()">SELESAI UJIAN</button>
+            <a id="dlLink" style="display:none; text-align:center; margin-top:10px; font-size:0.8rem; color:var(--primary); text-decoration:none; cursor:pointer">Unduh Bukti Video</a>
+        </div>
+    </aside>
+
+    <main class="main-area">
+        <iframe id="examFrame" allow="camera; microphone; fullscreen"></iframe>
+    </main>
+</div>
+
+<script>
+/* ================================================
+   KONFIGURASI GURU (EDIT BAGIAN INI)
+   ================================================
+*/
+const CONFIG = {
+    // Link Form Default (bisa di-override via ?form=URL)
+    formUrl: "https://forms.gle/uEN6GRg8ftN8Aquw8",
+    token: "12345",         // Token masuk siswa
+    adminPass: "admin",     // Password guru untuk unlock
+    maxViolations: 3        // Batas maksimal pelanggaran
+};
+
+const ExamSystem = (() => {
+    // State management
+    let state = {
+        name: '',
+        violations: 0,
+        locked: false,
+        startTime: null,
+        mediaRecorder: null,
+        chunks: [],
+        timerInterval: null
+    };
+
+    const dom = {
+        setupModal: document.getElementById('modal-setup'),
+        lockModal: document.getElementById('modal-lock'),
+        frame: document.getElementById('examFrame'),
+        webcam: document.getElementById('webcam'),
+        logFeed: document.getElementById('logFeed'),
+        dispName: document.getElementById('dispName'),
+        timer: document.getElementById('timer'),
+        violBar: document.getElementById('violBar'),
+        violText: document.getElementById('violText'),
+        lockViolCount: document.getElementById('lock-viol-count'),
+        dlLink: document.getElementById('dlLink')
+    };
+
+    // --- UTILS ---
+    const log = (msg, isAlert = false) => {
+        const time = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+        const el = document.createElement('div');
+        el.className = `log-item ${isAlert ? 'alert' : ''}`;
+        el.innerHTML = `[${time}] ${msg}`;
+        dom.logFeed.prepend(el);
+    };
+
+    const formatFormUrl = (url) => {
+        try {
+            const u = new URL(url);
+            if(u.hostname.includes('google.com') && u.pathname.includes('forms')) {
+                u.searchParams.set('embedded', 'true');
+            }
+            return u.href;
+        } catch { return url; }
+    };
+
+    const saveState = () => {
+        localStorage.setItem('examState', JSON.stringify({
+            name: state.name,
+            violations: state.violations,
+            startTime: state.startTime,
+            isLocked: state.locked
+        }));
+    };
+
+    // --- CORE FUNCTIONS ---
+    return {
+        init: async () => {
+            const nameIn = document.getElementById('inName').value.trim();
+            const tokenIn = document.getElementById('inToken').value.trim();
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (!nameIn) return alert('Nama wajib diisi!');
+            if (tokenIn !== CONFIG.token && !urlParams.get('skip')) return alert('Token salah!');
+
+            // Request Fullscreen
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch(e) { console.log('Fullscreen blocked'); }
+
+            // Set Data
+            state.name = nameIn;
+            state.startTime = Date.now();
+            
+            // Check Persistence (Recovery after refresh)
+            const saved = localStorage.getItem('examState');
+            if(saved) {
+                const p = JSON.parse(saved);
+                // Hanya restore jika nama sama dan belum lewat 24 jam
+                if(p.name === state.name && (Date.now() - p.startTime) < 86400000) {
+                    state.violations = p.violations;
+                    state.startTime = p.startTime;
+                    if(p.isLocked) { state.locked = true; dom.lockModal.classList.add('active'); }
+                    log('Sesi dipulihkan dari penyimpanan lokal.');
+                }
+            }
+
+            // Update UI
+            dom.dispName.innerText = state.name.substring(0, 15);
+            dom.setupModal.classList.remove('active');
+            
+            // Set Form URL
+            const customForm = urlParams.get('form');
+            dom.frame.src = formatFormUrl(customForm || CONFIG.formUrl);
+
+            // Start Systems
+            ExamSystem.startCamera();
+            ExamSystem.startMonitoring();
+            ExamSystem.updateUI();
+            
+            state.timerInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - state.startTime) / 1000);
+                const m = Math.floor(diff / 60).toString().padStart(2, '0');
+                const s = (diff % 60).toString().padStart(2, '0');
+                dom.timer.innerText = `${m}:${s}`;
+                saveState(); // Auto-save state every second
+            }, 1000);
+
+            log('Ujian dimulai.');
+        },
+
+        startCamera: async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                dom.webcam.srcObject = stream;
+                
+                // Recording Logic
+                state.mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                state.mediaRecorder.ondataavailable = e => {
+                    if(e.data.size > 0) state.chunks.push(e.data);
+                };
+                state.mediaRecorder.start(2000); // Chunk per 2s
+            } catch (err) {
+                log('Kamera gagal diakses!', true);
+                alert('Akses kamera wajib! Periksa izin browser Anda.');
+            }
+        },
+
+        startMonitoring: () => {
+            // 1. Tab Change
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) ExamSystem.addViolation('Membuka Tab Lain');
+            });
+
+            // 2. Focus Lost
+            window.addEventListener('blur', () => {
+                // Buffer time to avoid false positives on simple clicks
+                setTimeout(() => {
+                    if (document.activeElement !== dom.frame) {
+                        ExamSystem.addViolation('Fokus Hilang (Klik luar)');
+                    }
+                }, 300);
+            });
+
+            // 3. Shortcuts
+            window.addEventListener('keydown', (e) => {
+                const forbidden = ['F12', 'PrintScreen', 'Escape'];
+                if (forbidden.includes(e.key) || (e.ctrlKey && ['c','v','t','w'].includes(e.key.toLowerCase()))) {
+                    e.preventDefault();
+                    ExamSystem.addViolation(`Tombol dilarang (${e.key})`);
+                }
+            });
+            
+            // 4. Fullscreen Watcher
+            setInterval(() => {
+                if(!document.fullscreenElement && !state.locked) {
+                     // Opsional: Paksa fullscreen atau catat pelanggaran
+                     // ExamSystem.addViolation('Keluar Fullscreen');
+                }
+            }, 2000);
+        },
+
+        addViolation: (reason) => {
+            if (state.locked) return;
+            
+            state.violations++;
+            ExamSystem.updateUI();
+            log(`PELANGGARAN: ${reason}`, true);
+            saveState();
+
+            if (state.violations >= CONFIG.maxViolations) {
+                ExamSystem.lock();
+            }
+        },
+
+        updateUI: () => {
+            dom.violText.innerText = `${state.violations}/${CONFIG.maxViolations}`;
+            const percentage = Math.min((state.violations / CONFIG.maxViolations) * 100, 100);
+            dom.violBar.style.width = `${percentage}%`;
+            
+            // Ubah warna bar jika kritis
+            if(state.violations >= CONFIG.maxViolations - 1) {
+                dom.violBar.style.backgroundColor = 'var(--danger)';
+            } else {
+                dom.violBar.style.backgroundColor = 'var(--warning)';
+            }
+        },
+
+        lock: () => {
+            state.locked = true;
+            dom.lockViolCount.innerText = state.violations;
+            dom.lockModal.classList.add('active');
+            document.exitFullscreen().catch(()=>{});
+            log('Ujian DIBLOKIR oleh sistem.', true);
+        },
+
+        unlock: () => {
+            const pass = document.getElementById('teacherPass').value;
+            if (pass === CONFIG.adminPass) {
+                state.locked = false;
+                state.violations = 0; // Reset atau biarkan (opsional)
+                dom.lockModal.classList.remove('active');
+                ExamSystem.updateUI();
+                log('Blokir dibuka oleh Admin.');
+                document.documentElement.requestFullscreen().catch(()=>{});
+            } else {
+                alert('Password salah!');
+            }
+        },
+
+        finish: () => {
+            if (!confirm('Apakah Anda SUDAH KLIK SUBMIT di dalam Google Form? \n\nJika belum, jawaban Anda tidak akan terkirim!')) return;
+            
+            if (state.mediaRecorder) state.mediaRecorder.stop();
+            localStorage.removeItem('examState'); // Clear session
+            
+            dom.frame.remove(); // Remove form
+            log('Ujian Selesai.');
+
+            setTimeout(() => {
+                const blob = new Blob(state.chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                dom.dlLink.href = url;
+                dom.dlLink.download = `Exam_${state.name}_${Date.now()}.webm`;
+                dom.dlLink.style.display = 'block';
+                dom.dlLink.textContent = '📥 KLIK UNTUK SIMPAN BUKTI VIDEO';
+                alert('Ujian selesai. Silakan unduh video bukti di pojok kiri bawah.');
+            }, 500);
+        }
+    };
+})();
+</script>
+</body>
+</html>
